@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Чат с эхо-сервером</title>
+    <style>
+        .container{
+            max-width: 1340px;
+            padding-right: 15px;
+            padding-left: 15px;
+            margin-right: auto;
+            margin-left: auto;
+        }
+
+        .chat {
+            display: flex;
+            flex-direction: column;
+            height: 400px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            overflow-y: scroll;
+        }
+
+        .messages {
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+        }
+
+        .message {
+            display: flex;
+            flex-direction: column;
+            max-width: 70%;
+            margin: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .message--incoming {
+            align-self: flex-start;
+            background-color: #f5f5f5;
+        }
+
+        .message--outgoing {
+            align-self: flex-end;
+            background-color: #4CAF50;
+            color: #fff;
+        }
+
+        .message__text {
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .message__time {
+            font-size: 12px;
+            color: #7b7b7b;
+            margin-top: 5px;
+            background-color: #fff;
+            display: block;
+            text-align: center;
+            border-radius: 10px;
+        }
+
+        .input-container {
+            display: flex;
+            align-items: center;
+            margin: 10px 10px 5px 0;
+        }
+
+        .message-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .send-button, .location-button {
+            margin-left: 10px;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: #fff;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .send-button:hover, .location-button:hover {
+            background-color: #3e8e41;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+<div class="chat">
+    <div class="messages"></div>
+</div>
+
+<div class="input-container">
+    <input type="text" class="message-input">
+    <button class="send-button">Отправить</button>
+    <button class="location-button">Геолокация</button>
+</div>
+
+</div>
+<script>
+    const socket = new WebSocket('wss://echo-ws-service.herokuapp.com');
+
+    const messageContainer = document.querySelector('.messages');
+    const messageInput = document.querySelector('.message-input');
+    const sendButton = document.querySelector('.send-button');
+    const locationButton = document.querySelector('.location-button');
+
+    function appendMessage(message, incoming = false) {
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('message');
+        if (incoming) {
+            messageElement.classList.add('message--incoming');
+        } else {
+            messageElement.classList.add('message--outgoing');
+        }
+        const textElement = document.createElement('div');
+        textElement.classList.add('message__text');
+        textElement.innerHTML = message;
+        const timeElement = document.createElement('div');
+        timeElement.classList.add('message__time');
+        timeElement.innerText = new Date().toLocaleTimeString();
+        messageElement.appendChild(textElement);
+        messageElement.appendChild(timeElement);
+        messageContainer.appendChild(messageElement);
+        messageContainer.scrollTop = messageContainer.scrollHeight;
+    }
+
+    // Функция, выводящая текст об ошибке
+    const error = () => {
+        appendMessage('Невозможно получить ваше местоположение');
+    }
+
+    // Функция, срабатывающая при успешном получении геолокации
+    const success = (position) => {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+
+        appendMessage(`Широта: ${latitude} °, Долгота: ${longitude} °<br><a href="https://www.openstreetmap.org/#map=18/${latitude}/${longitude}" target="_blank">Ссылка на карту</a>`);
+    }
+
+
+    socket.addEventListener('open', event => {
+        console.log('Connected to WebSocket');
+    });
+
+    socket.addEventListener('message', event => {
+        appendMessage(event.data, true);
+    });
+
+    sendButton.addEventListener('click', event => {
+        const message = messageInput.value;
+        if (message) {
+            appendMessage(message);
+            socket.send(message);
+            messageInput.value = '';
+        }
+    });
+
+    locationButton.addEventListener('click', event => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(success, error);
+        } else {
+            alert('Ваш браузер не поддерживает геолокацию');
+        }
+    });
+</script>
+</body>
+</html>
